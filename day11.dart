@@ -22,7 +22,7 @@ abstract class const MediaItem({
   required final MediaType type,
   final Duration? duration,
   required final SubscriptionTier requiredTier,
-}) {
+}) implements Identifiable<MediaId> {
   // TODO: Abstract method describing media
   String describe();
 }
@@ -98,7 +98,7 @@ String describePurchase(PurchaseResult<double> result) => switch (result) {
 
 // 3
 
-abstract interface class Repository<T, ID> {
+abstract interface class Repository<T extends Identifiable<ID>, ID> {
   Future<T?> getById(ID id);
   Future<List<T>> getAll();
   Future<void> save(T item);
@@ -106,7 +106,8 @@ abstract interface class Repository<T, ID> {
 
 typedef IdExtractor<T, ID> = ID Function(T item);
 
-class InMemoryRepository<T, ID> implements Repository<T, ID> {
+class InMemoryRepository<T extends Identifiable<ID>, ID>
+    implements Repository<T, ID> {
   final Map<ID, T> _itemsMap = {};
   final IdExtractor<T, ID> idOf;
   InMemoryRepository({required this.idOf});
@@ -140,13 +141,10 @@ Map<MediaType, List<MediaItem>> groupByType(List<MediaItem> items) {
 }
 
 Duration totalMovieDuration(List<Movie> movies) {
-  return movies.fold(
-    Duration.zero,
-    (a, c) => a + (c.duration),
-  );
+  return movies.fold(Duration.zero, (a, c) => a + (c.duration));
 }
 
-Future<void> main() async{
+Future<void> main() async {
   final movie = Movie(
     id: const MediaId(1),
     title: 'Interstellar',
@@ -177,7 +175,7 @@ Future<void> main() async{
   assert(channel.requiredTier == SubscriptionTier.standard);
 
   // Verify polymorphism
-   List<MediaItem> media = [movie, channel];
+  List<MediaItem> media = [movie, channel];
 
   assert(media.length == 2);
   assert(media.first.describe().isNotEmpty);
@@ -211,7 +209,7 @@ Future<void> main() async{
   assert(rejectedPurchase is PurchaseFailure<double>);
 
   print('PASS: Pricing and pattern matching');
-  
+
   // 3. Generics and repositories
   final repository = InMemoryRepository<MediaItem, MediaId>(
     idOf: (item) => item.id,
@@ -228,7 +226,7 @@ Future<void> main() async{
   print('PASS: Generic repository');
 
   // 4. Collection operations
-   media = await repository.getAll();
+  media = await repository.getAll();
 
   assert(media.length == 2);
   assert(premiumContent(media).length == 1);
